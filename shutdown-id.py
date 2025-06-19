@@ -1,24 +1,21 @@
 import boto3
+import json
 
 def lambda_handler(event, context):
     # --- Configurações ---
     # Substitua pela sua região AWS (ex: 'sa-east-1')
     AWS_REGION = 'sua-regiao-aws'
-    
-    # Lista de IDs das instâncias EC2 que você deseja desligar.
-    # Ex: INSTANCE_IDS_TO_STOP = ['i-1234567890abcdef0', 'i-fedcba09876543210']
-    # Para customizações, você pode passar esses IDs no 'event' da Lambda ou como variável de ambiente.
-    INSTANCE_IDS_TO_STOP = [
-        'ID_DA_SUA_INSTANCIA_1',
-        'ID_DA_SUA_INSTANCIA_2',
-        # Adicione mais IDs conforme necessário
-    ]
     # --- Fim das Configurações ---
 
     ec2 = boto3.client('ec2', region_name=AWS_REGION)
 
+    # Tenta obter os IDs das instâncias do evento.
+    # Esperamos que o JSON do EventBridge tenha uma chave 'instance_ids'.
+    # Ex: {"instance_ids": ["i-1234567890abcdef0", "i-fedcba09876543210"]}
+    INSTANCE_IDS_TO_STOP = event.get('instance_ids', [])
+
     if not INSTANCE_IDS_TO_STOP:
-        print("Nenhum ID de instância fornecido para desligar.")
+        print("Nenhum ID de instância fornecido no evento de entrada para desligar.")
         return {
             'statusCode': 200,
             'body': 'Nenhuma instância para desligar.'
@@ -33,9 +30,8 @@ def lambda_handler(event, context):
             for instance in reservation['Instances']:
                 running_instances.append(instance['InstanceId'])
     except ec2.exceptions.ClientError as e:
-        print(f"Erro ao descrever instâncias: {e}")
+        print(f"Erro ao descrever instâncias: {e}. Alguns IDs podem não ter sido encontrados.")
         # Se algum ID não for encontrado, ele será ignorado na lista de running_instances
-        # Mas a função pode continuar tentando desligar os que foram encontrados
         pass
         
     if running_instances:
@@ -46,18 +42,10 @@ def lambda_handler(event, context):
         except ec2.exceptions.ClientError as e:
             print(f"Erro ao desligar instâncias: {e}")
             # Você pode adicionar lógica de tratamento de erro mais específica aqui
-            # Ex: permissões insuficientes, instância já em estado 'stopping'
     else:
-        print("Nenhuma das instâncias especificadas está em estado 'running' para ser desligada.")
+        print("Nenhuma das instâncias especificadas no evento está em estado 'running' para ser desligada.")
 
     return {
         'statusCode': 200,
         'body': 'Processo de desligamento por ID concluído.'
     }
-
-# Exemplo de como você chamaria a função se estivesse testando localmente (fora da Lambda)
-# if __name__ == "__main__":
-#     # Defina seu 'event' e 'context' de teste, se necessário
-#     test_event = {} 
-#     test_context = {}
-#     lambda_handler(test_event, test_context)
