@@ -1,7 +1,7 @@
 import boto3
 
 def lambda_handler(event, context):
-    ec2 = boto3.client('ec2', region_name='regiao-aws')
+    ec2 = boto3.client('ec2', region_name='sa-east-1')
 
     # Filtra instâncias com a tag 'AutoStart' = 'True'
     # Você pode usar a mesma tag 'AutoStop' = 'True' e filtrar por 'stopped'
